@@ -4,14 +4,20 @@
 #include <fstream>
 #include <cctype>
 #include <ctime>
+#include <algorithm>
+
+void line() {
+    std::cout << "----------------------------------------\n";
+}
+
+void delete_last_space(std::string &str) {
+    if (str[str.size() - 1] == ' ') {
+        str.erase(str.size() - 1, 1);
+    }
+}
 
 bool is_str_digit(const std::string& str) {
-    for (auto & i : str) {
-        if (!isdigit(i)) {
-            return false;
-        }
-    }
-    return true;
+    return std::all_of(str.begin(), str.end(), isdigit);
 }
 
 int input_num(const std::string& str){
@@ -24,6 +30,7 @@ int input_num(const std::string& str){
         std::cout << "Incorrect input! Try again: ";
         std::cin >> temp;
     }
+    delete_last_space(temp);
     return std::stoi(temp);
 }
 
@@ -122,12 +129,27 @@ Date str_to_date(std::string str) {
     return date;
 }
 
+void print_task(const Task& task) {
+    std::cout << "\nTask name: " << task.name << std::endl;
+    std::cout << "Task description: " << task.description << std::endl;
+    std::cout << "Task deadline: " << task.date.day << "-" << task.date.month << "-" << task.date.year << " "
+              << task.date.hour << ":" << task.date.minute << std::endl;
+    std::cout << "Task status: " << status_to_str(task.status) << std::endl;
+    line();
+}
+
 void Tasks::add_task(){
     Task task;
     std::cout << "Enter task name: ";
-    std::getline(std::cin, task.name);
+    while (task.name.empty()) {
+        std::getline(std::cin, task.name);
+        delete_last_space(task.name);
+    }
     std::cout << "Enter task description: ";
-    std::getline(std::cin, task.description);
+    while (task.description.empty()) {
+        std::getline(std::cin, task.description);
+        delete_last_space(task.description);
+    }
     std::cout << "Enter task deadline (dd-mm-yyyy hh:mm):\n";
     input_date(task.date);
     while (!date_checker(task.date)) {
@@ -158,7 +180,7 @@ void Tasks::file_to_vec() {
     input.close();
 }
 
-void Tasks::vec_to_file() {
+void Tasks::vec_to_file() const {
     std::ofstream output("Tasks.txt");
     for (auto & task : tasks) {
         output << task.name << std::endl;
@@ -170,14 +192,31 @@ void Tasks::vec_to_file() {
     output.close();
 }
 
-void Tasks::view_tasks() {
+void Tasks::view_tasks() const {
     int counter = 1;
+    line();
     for (auto & task : tasks) {
         std::cout << "Task number: " << counter++ << std::endl;
         std::cout << "Task name: " << task.name << std::endl;
         std::cout << "Task status: " << status_to_str(task.status) << std::endl;
-        std::cout << "----------------------------------------\n";
+        line();
     }
+    std::cout << "1. View task\n" << "0. Back\n";
+    int choice = input_num("Enter your choice: ");
+    while (choice < 0 || choice > 1) {
+        std::cout << "Incorrect input! Try again: ";
+        choice = input_num("Enter your choice: ");
+    }
+    if (choice == 0) {
+        return;
+    }
+    int task_num = input_num("Enter task number: ");
+    while (task_num < 1 || task_num > tasks.size()) {
+        std::cout << "Incorrect input! Try again: ";
+        task_num = input_num("Enter task number: ");
+    }
+    std::cout << "----------------------------------------";
+    print_task(tasks[task_num - 1]);
 }
 
 void Tasks::edit_task() {
@@ -194,16 +233,27 @@ void Tasks::edit_task() {
         std::cout << "Incorrect input! Try again: ";
         std::cin >> choice;
     }
+    std::string temp;
     switch (choice) {
         case 0:
             return;
         case 1:
             std::cout << "Enter new name: ";
-            std::getline(std::cin, tasks[task_num - 1].name);
+            std::getline(std::cin, temp);
+            while (temp.empty()) {
+                std::getline(std::cin, temp);
+                delete_last_space(temp);
+            }
+            tasks[task_num - 1].name = temp;
             break;
         case 2:
             std::cout << "Enter new description: ";
-            std::getline(std::cin, tasks[task_num - 1].description);
+            std::getline(std::cin, temp);
+            while (temp.empty()) {
+                std::getline(std::cin, temp);
+                delete_last_space(temp);
+            }
+            tasks[task_num - 1].description = temp;
             break;
         case 3:
             std::cout << "Enter new deadline (dd-mm-yyyy hh:mm):\n";
@@ -236,53 +286,121 @@ void Tasks::delete_task() {
     tasks.erase(tasks.begin() + task_num);
 }
 
-void Tasks::view_by_status() {
+void Tasks::view_by_status() const{
     std::cout << "Enter status:\n" << "0. New\n" << "1. In progress\n" << "2. Done\n" << "Enter your choice: ";
     int choice = input_num("");
     while (choice < 0 || choice > 2) {
         std::cout << "Incorrect input! Try again: ";
         choice = input_num("");
     }
+    int counter = 1;
+    bool flag = false;
     for (auto &i : tasks) {
         if (i.status == choice) {
-            std::cout << "\nTask name: " << i.name << std::endl;
-            std::cout << "Task description: " << i.description << std::endl;
-            std::cout << "Task deadline: " << i.date.day << "-" << i.date.month << "-" << i.date.year << " "
-                      << i.date.hour << ":" << i.date.minute << std::endl;
-            std::cout << "Task status: " << status_to_str(i.status) << std::endl;
-            std::cout << "----------------------------------------\n";
+            if (!flag) {
+                line();
+            }
+            std::cout << "Task number: " << counter++;
+            print_task(i);
+            flag = true;
         }
+    }
+    if (!flag) {
+        std::cout << "None\n";
     }
 }
 
 std::string Tasks::get_current_time() {
     const std::time_t currentTime = std::time(nullptr);
     char buffer[80];
-    std::strftime(buffer, sizeof(buffer), "%Y-%m-%d %H:%M", std::localtime(&currentTime));
+    std::strftime(buffer, sizeof(buffer), "%d-%m-%Y %H:%M", std::localtime(&currentTime));
     std::string str(buffer);
     return str;
 }
 
-void Tasks::deadline_checker() {
-    std::string time = get_current_time();
+void Tasks::near_deadline_checker(const Date& time) const{
+    std::cout << "Tasks with deadline in 24 hours:\n";
+    bool flag = false;
+    int counter = 1;
 
-}
-
-
-
-
-
-
-
-
-void Tasks::print() {
-    for (auto & task : tasks) {
-        std::cout << "Task name: " << task.name << std::endl;
-        std::cout << "Task description: " << task.description << std::endl;
-        std::cout << "Task deadline: " << task.date.day << "-" << task.date.month << "-" << task.date.year << " "
-                  << task.date.hour << ":" << task.date.minute << std::endl;
-        std::cout << "Task status: " << status_to_str(task.status) << std::endl;
-        std::cout << "----------------------------------------\n";
+    for (auto & i : tasks) {
+        if (i.date.year == time.year && i.date.month == time.month && i.date.day == time.day) {
+            if (std::stoi(i.date.hour) - std::stoi(time.hour) <= 24) {
+                if (!flag) {
+                    line();
+                }
+                std::cout << "Task number: " << counter;
+                print_task(i);
+                flag = true;
+            }
+        } else if (i.date.year == time.year && i.date.month == time.month &&
+            std::stoi(i.date.day) == std::stoi(time.day) + 1 && std::stoi(i.date.hour) - std::stoi(time.hour) <= 24) {
+            if (!flag) {
+                line();
+            }
+            std::cout << "Task number: " << counter;
+            print_task(i);
+            flag = true;
+        }
+        counter++;
+    }
+    if (!flag) {
+        std::cout << "None\n";
     }
 }
 
+void Tasks::expired_deadline_checker(const Date& time) const{
+    std::cout << "Expired tasks:\n";
+    bool flag = false;
+    int counter = 1;
+    for (auto &i : tasks) {
+        if (i.date.year < time.year) {
+            if (!flag) {
+                line();
+            }
+            std::cout << "Task number: " << counter;
+            print_task(i);
+            flag = true;
+        } else if (i.date.year == time.year && i.date.month < time.month) {
+            if (!flag) {
+                line();
+            }
+            std::cout << "Task number: " << counter;
+            print_task(i);
+            flag = true;
+        } else if (i.date.year == time.year && i.date.month == time.month && i.date.day < time.day) {
+            if (!flag) {
+                line();
+            }
+            std::cout << "Task number: " << counter;
+            print_task(i);
+            flag = true;
+        } else if (i.date.year == time.year && i.date.month == time.month && i.date.day == time.day) {
+            if (i.date.hour < time.hour) {
+                if (!flag) {
+                    line();
+                }
+                std::cout << "Task number: " << counter;
+                print_task(i);
+                flag = true;
+            } else if (i.date.hour == time.hour && i.date.minute < time.minute) {
+                if (!flag) {
+                    line();
+                }
+                std::cout << "Task number: " << counter;
+                print_task(i);
+                flag = true;
+            }
+        }
+        counter++;
+    }
+    if (!flag) {
+        std::cout << "None\n";
+    }
+}
+
+void Tasks::deadline_checker() const{
+    const Date time = str_to_date(get_current_time());
+    near_deadline_checker(time);
+    expired_deadline_checker(time);
+}

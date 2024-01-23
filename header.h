@@ -1,3 +1,6 @@
+#ifndef HEADER_H
+#define HEADER_H
+
 #include <string>
 #include <utility>
 #include <vector>
@@ -25,16 +28,19 @@ class Tasks {
 private:
     std::vector<Task> tasks;
     void file_to_vec();
-    void vec_to_file();
+    void vec_to_file() const;
 public:
     Tasks() { file_to_vec(); };
     ~Tasks() { vec_to_file(); };
     void add_task();
-    void view_tasks();
-    void print();
+    void view_tasks() const;
     void edit_task();
     void delete_task();
-    void view_by_status();
-    void deadline_checker();
+    void view_by_status() const;
+    void near_deadline_checker(const Date& time) const;
+    void expired_deadline_checker(const Date& time) const;
+    void deadline_checker() const;
     static std::string get_current_time();
 };
+
+#endif //HEADER_H
